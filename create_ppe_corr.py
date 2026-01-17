@@ -4,8 +4,24 @@ Script to download and build PPE Correctness dataset for calculating Accuracy me
 
 This script downloads the 5 correctness benchmarks from HuggingFace and creates
 a unified dataset in the required format for computing the Accuracy metric.
+
+The output format is:
+    List[{
+        "id": str,           # Unique identifier: "{domain}_{question_id}"
+        "domain": str,       # One of: mmlu_pro, math, gpqa, ifeval, mbpp_plus
+        "prompt": str,       # The question/prompt text
+        "chosen": List[str], # List of correct responses (score=1)
+        "rejected": List[str] # List of incorrect responses (score=0)
+    }]
+
+Usage:
+    python create_ppe_corr.py [--output OUTPUT_PATH] [--split SPLIT]
+    
+    --output: Output JSON file path (default: PPE_Corr.json)
+    --split: Dataset split to use (default: train)
 """
 
+import argparse
 import json
 from datasets import load_dataset
 from tqdm import tqdm
@@ -80,19 +96,20 @@ def process_benchmark(domain: str, dataset_path: str, split: str = "train") -> l
     return results
 
 
-def create_ppe_corr_dataset(output_path: str = "PPE_Corr.json"):
+def create_ppe_corr_dataset(output_path: str = "PPE_Corr.json", split: str = "train"):
     """
     Download and build the complete PPE Correctness dataset.
     
     Args:
         output_path: Path where the output JSON file will be saved
+        split: Dataset split to use (default: "train")
     """
     all_results = []
     
     # Process each benchmark
     for domain, dataset_path in CORRECTNESS_BENCHMARKS.items():
         try:
-            benchmark_results = process_benchmark(domain, dataset_path)
+            benchmark_results = process_benchmark(domain, dataset_path, split=split)
             all_results.extend(benchmark_results)
             print(f"✓ Successfully processed {domain}: {len(benchmark_results)} items")
         except Exception as e:
@@ -130,4 +147,22 @@ def create_ppe_corr_dataset(output_path: str = "PPE_Corr.json"):
 
 
 if __name__ == "__main__":
-    create_ppe_corr_dataset()
+    parser = argparse.ArgumentParser(
+        description="Download and build PPE Correctness dataset for Accuracy metric calculation"
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="PPE_Corr.json",
+        help="Output JSON file path (default: PPE_Corr.json)"
+    )
+    parser.add_argument(
+        "--split",
+        type=str,
+        default="train",
+        help="Dataset split to use (default: train)"
+    )
+    
+    args = parser.parse_args()
+    
+    create_ppe_corr_dataset(output_path=args.output, split=args.split)
