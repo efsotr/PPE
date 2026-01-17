@@ -47,9 +47,11 @@ def build_records(split: str) -> List[Dict]:
             chosen, rejected = [], []
 
             for first, second in pairs:
+                min_index = min(first, second)
                 max_index = max(first, second)
                 if (
-                    max_index >= len(responses)
+                    min_index < 0
+                    or max_index >= len(responses)
                     or max_index >= len(scores)
                     or scores[first] == scores[second]
                 ):
@@ -63,7 +65,11 @@ def build_records(split: str) -> List[Dict]:
                     rejected.append(responses[first])
 
             # Benchmarks may surface the primary identifier under slightly different keys.
-            question_id = row.get("question_id") or row.get("id") or row.get("uid")
+            question_id = row.get("question_id")
+            if question_id is None:
+                question_id = row.get("id")
+            if question_id is None:
+                question_id = row.get("uid")
             if question_id is None:
                 question_id = f"{domain}-{idx}"
 
