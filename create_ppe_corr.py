@@ -29,7 +29,7 @@ def build_records(split: str) -> List[Dict]:
 
         response_cols = _response_columns(dataset.column_names)
 
-        for row in dataset:
+        for idx, row in enumerate(dataset):
             responses = [row[col] for col in response_cols]
             scores = row["scores"]
             pairs = row["sampled_conflict_pairs"]
@@ -37,6 +37,13 @@ def build_records(split: str) -> List[Dict]:
             chosen, rejected = [], []
 
             for first, second in pairs:
+                if (
+                    max(first, second) >= len(responses)
+                    or max(first, second) >= len(scores)
+                    or scores[first] == scores[second]
+                ):
+                    continue
+
                 if scores[first] > scores[second]:
                     chosen.append(responses[first])
                     rejected.append(responses[second])
@@ -45,6 +52,8 @@ def build_records(split: str) -> List[Dict]:
                     rejected.append(responses[first])
 
             question_id = row.get("question_id") or row.get("id") or row.get("uid")
+            if question_id is None:
+                question_id = f"{domain}-{idx}"
 
             records.append(
                 {
