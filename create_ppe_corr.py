@@ -36,6 +36,9 @@ CORRECTNESS_BENCHMARKS = {
     "mbpp_plus": "lmarena-ai/PPE-MBPP-Plus-Best-of-K",
 }
 
+# Number of responses per question in each benchmark
+RESPONSES_PER_QUESTION = 32
+
 
 def process_benchmark(domain: str, dataset_path: str, split: str = "train") -> list:
     """
@@ -55,7 +58,15 @@ def process_benchmark(domain: str, dataset_path: str, split: str = "train") -> l
     try:
         dataset = load_dataset(dataset_path, split=split)
     except Exception as e:
-        print(f"Failed to load dataset {dataset_path}: {e}")
+        error_msg = (
+            f"Failed to load dataset '{dataset_path}' for domain '{domain}'.\n"
+            f"Error: {e}\n"
+            f"Please check:\n"
+            f"  1. Your internet connection is working\n"
+            f"  2. The dataset path is correct\n"
+            f"  3. You have access to HuggingFace datasets"
+        )
+        print(error_msg)
         raise
     
     results = []
@@ -71,7 +82,7 @@ def process_benchmark(domain: str, dataset_path: str, split: str = "train") -> l
         rejected = []
         
         # Each benchmark has 32 responses (response_1 to response_32)
-        for i in range(32):
+        for i in range(RESPONSES_PER_QUESTION):
             response_key = f"response_{i + 1}"
             response = item[response_key]
             score = scores[i]
@@ -112,8 +123,17 @@ def create_ppe_corr_dataset(output_path: str = "PPE_Corr.json", split: str = "tr
             benchmark_results = process_benchmark(domain, dataset_path, split=split)
             all_results.extend(benchmark_results)
             print(f"✓ Successfully processed {domain}: {len(benchmark_results)} items")
+        except (ConnectionError, OSError) as e:
+            print(f"✗ Network error processing {domain}: {e}")
+            print(f"  Skipping {domain} and continuing with other benchmarks...")
+            continue
+        except KeyError as e:
+            print(f"✗ Data format error in {domain}: Missing expected field {e}")
+            print(f"  Skipping {domain} and continuing with other benchmarks...")
+            continue
         except Exception as e:
-            print(f"✗ Error processing {domain}: {e}")
+            print(f"✗ Unexpected error processing {domain}: {e}")
+            print(f"  Skipping {domain} and continuing with other benchmarks...")
             continue
     
     # Save to JSON file
