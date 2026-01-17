@@ -5,7 +5,4 @@ datasets
 huggingface-hub
 pandas
 streamlit
-openai
-scipy
 tqdm
-scikit-learn
