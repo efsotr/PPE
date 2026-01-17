@@ -99,6 +99,12 @@ PPE's evaluations have 2 main types: real human preference labels crowdsourced f
   - Huggingface link: [`lmarena-ai/PPE-MBPP-Plus-Best-of-K`](https://huggingface.co/datasets/lmarena-ai/PPE-MBPP-Plus-Best-of-K)
   - Prompt Source: [MBPP-Plus](https://huggingface.co/datasets/evalplus/mbppplus)
 
+To build the correctness Accuracy dataset in PPO-style comparison format, run:
+
+```bash
+python create_ppe_corr.py --output PPE_Corr.json
+```
+
 Additionally, we support adding new benchmarks. See the benchmark implementations [here](./benchmarks/).
 
 # Reward Models
