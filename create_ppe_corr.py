@@ -15,10 +15,20 @@ CORRECTNESS_BENCHMARKS: Dict[str, str] = {
 
 
 def _response_columns(column_names: List[str]) -> List[str]:
-    return sorted(
-        [c for c in column_names if c.startswith("response_")],
-        key=lambda name: int(name.split("_")[1]),
-    )
+    indexed_cols = []
+
+    for name in column_names:
+        if not name.startswith("response_"):
+            continue
+
+        try:
+            idx = int(name.split("_")[1])
+        except (IndexError, ValueError):
+            continue
+
+        indexed_cols.append((idx, name))
+
+    return [name for _, name in sorted(indexed_cols, key=lambda pair: pair[0])]
 
 
 def build_records(split: str) -> List[Dict]:
@@ -37,9 +47,10 @@ def build_records(split: str) -> List[Dict]:
             chosen, rejected = [], []
 
             for first, second in pairs:
+                max_index = max(first, second)
                 if (
-                    max(first, second) >= len(responses)
-                    or max(first, second) >= len(scores)
+                    max_index >= len(responses)
+                    or max_index >= len(scores)
                     or scores[first] == scores[second]
                 ):
                     continue
@@ -51,6 +62,7 @@ def build_records(split: str) -> List[Dict]:
                     chosen.append(responses[second])
                     rejected.append(responses[first])
 
+            # Benchmarks may surface the primary identifier under slightly different keys.
             question_id = row.get("question_id") or row.get("id") or row.get("uid")
             if question_id is None:
                 question_id = f"{domain}-{idx}"
