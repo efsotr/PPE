@@ -57,14 +57,31 @@ def process_benchmark(domain: str, dataset_path: str, split: str = "train") -> l
     # Load the dataset
     try:
         dataset = load_dataset(dataset_path, split=split)
+    except (ConnectionError, OSError) as e:
+        error_msg = (
+            f"Failed to load dataset '{dataset_path}' for domain '{domain}'.\n"
+            f"Network error: {e}\n"
+            f"Please check:\n"
+            f"  1. Your internet connection is working\n"
+            f"  2. You have access to HuggingFace datasets"
+        )
+        print(error_msg)
+        raise
+    except ValueError as e:
+        error_msg = (
+            f"Failed to load dataset '{dataset_path}' for domain '{domain}'.\n"
+            f"Invalid dataset configuration: {e}\n"
+            f"Please check that the dataset path and split are correct."
+        )
+        print(error_msg)
+        raise
     except Exception as e:
         error_msg = (
             f"Failed to load dataset '{dataset_path}' for domain '{domain}'.\n"
-            f"Error: {e}\n"
+            f"Unexpected error: {e}\n"
             f"Please check:\n"
-            f"  1. Your internet connection is working\n"
-            f"  2. The dataset path is correct\n"
-            f"  3. You have access to HuggingFace datasets"
+            f"  1. The dataset path is correct\n"
+            f"  2. The split '{split}' exists in the dataset"
         )
         print(error_msg)
         raise
@@ -73,17 +90,40 @@ def process_benchmark(domain: str, dataset_path: str, split: str = "train") -> l
     
     # Process each prompt
     for idx, item in enumerate(tqdm(dataset, desc=f"Processing {domain}")):
-        prompt = item["prompt"]
-        question_id = item["question_id"]
-        scores = item["scores"]
+        try:
+            prompt = item["prompt"]
+            question_id = item["question_id"]
+            scores = item["scores"]
+        except KeyError as e:
+            print(f"Warning: Skipping item {idx} in {domain} - missing field {e}")
+            continue
+        
+        # Validate that we have the expected number of responses
+        if len(scores) != RESPONSES_PER_QUESTION:
+            print(f"Warning: Item {question_id} in {domain} has {len(scores)} scores, expected {RESPONSES_PER_QUESTION}")
+            # Use the actual number of scores available
+            num_responses = min(len(scores), RESPONSES_PER_QUESTION)
+        else:
+            num_responses = RESPONSES_PER_QUESTION
         
         # Separate responses into chosen (correct) and rejected (incorrect)
         chosen = []
         rejected = []
         
-        # Each benchmark has 32 responses (response_1 to response_32)
-        for i in range(RESPONSES_PER_QUESTION):
+        # Process each response up to the number of available scores
+        for i in range(num_responses):
             response_key = f"response_{i + 1}"
+            
+            # Check if response exists
+            if response_key not in item:
+                print(f"Warning: Missing {response_key} for {question_id} in {domain}")
+                continue
+            
+            # Check if score index is valid
+            if i >= len(scores):
+                print(f"Warning: Missing score index {i} for {question_id} in {domain}")
+                continue
+                
             response = item[response_key]
             score = scores[i]
             
