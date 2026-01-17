@@ -101,10 +101,9 @@ def process_benchmark(domain: str, dataset_path: str, split: str = "train") -> l
         # Validate that we have the expected number of responses
         if len(scores) != RESPONSES_PER_QUESTION:
             print(f"Warning: Item {question_id} in {domain} has {len(scores)} scores, expected {RESPONSES_PER_QUESTION}")
-            # Use the actual number of scores available
-            num_responses = min(len(scores), RESPONSES_PER_QUESTION)
-        else:
-            num_responses = RESPONSES_PER_QUESTION
+        
+        # Use the actual number of scores available
+        num_responses = len(scores)
         
         # Separate responses into chosen (correct) and rejected (incorrect)
         chosen = []
@@ -126,6 +125,11 @@ def process_benchmark(domain: str, dataset_path: str, split: str = "train") -> l
                 
             response = item[response_key]
             score = scores[i]
+            
+            # Validate score is 0 or 1
+            if score not in (0, 1):
+                print(f"Warning: Invalid score {score} for {response_key} in {question_id} ({domain}), treating as incorrect")
+                score = 0
             
             # Score 1 means correct (chosen), 0 means incorrect (rejected)
             if score == 1:
@@ -178,8 +182,19 @@ def create_ppe_corr_dataset(output_path: str = "PPE_Corr.json", split: str = "tr
     
     # Save to JSON file
     print(f"\nSaving {len(all_results)} items to {output_path}...")
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(all_results, f, indent=2, ensure_ascii=False)
+    try:
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(all_results, f, indent=2, ensure_ascii=False)
+    except IOError as e:
+        print(f"✗ Failed to write output file: {e}")
+        print("Please check:")
+        print("  1. You have write permissions in the current directory")
+        print("  2. There is sufficient disk space")
+        print("  3. The output path is valid")
+        raise
+    except Exception as e:
+        print(f"✗ Unexpected error writing output file: {e}")
+        raise
     
     print(f"✓ Successfully created {output_path}")
     
